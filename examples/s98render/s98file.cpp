@@ -76,9 +76,13 @@ bool S98File::setFilePath(const char* filepath) {
     printf("dataptr: %d, loopptr: %d nameptr: %d\n", header->dataptr, header->loopptr, header->nameptr);
     printf("device count: %d\n", header->devicecount);
     
-    for (int i = 0; i < header->devicecount;i++){
-        printf("device type: %d\n", header->deviceInfo[i].type);
-        if (header->deviceInfo[i].type == S98File::TYPE_NONE) header->deviceInfo[i].type = S98File::TYPE_OPNA;
+    if (header->format == '3'){
+        for (int i = 0; i < header->devicecount;i++){
+            printf("device type: %d\n", header->deviceInfo[i].type);
+            if (header->deviceInfo[i].type == S98File::TYPE_NONE) header->deviceInfo[i].type = S98File::TYPE_OPNA;
+        }
+    }else{
+        header->devicecount = 1;
     }
 
     //if timer is not set, use default value instead
