@@ -232,8 +232,8 @@ protected:
 //  GLOBAL HELPERS
 //*********************************************************
 
-// global list of active chips
-std::list<vgm_chip_base *> active_chips;
+// global vector of active chips
+std::vector<vgm_chip_base *> active_chips;
 
 
 
@@ -291,11 +291,12 @@ void add_chips(uint32_t clock, chip_type type, char const *chipname)
 //  find_chip - find the given chip and index
 //-------------------------------------------------
 
+
 vgm_chip_base *find_chip(chip_type type, uint8_t index)
 {
-	for (auto chip : active_chips)
-		if (chip->type() == type && index-- == 0)
-			return chip;
+	if (index < active_chips.size()){
+		return active_chips[index];
+	}
 	return nullptr;
 }
 
@@ -305,11 +306,11 @@ vgm_chip_base *find_chip(chip_type type, uint8_t index)
 //  and index
 //-------------------------------------------------
 
-void write_chip(chip_type type, uint8_t index, uint32_t reg, uint8_t data)
+void write_chip(uint8_t index, uint32_t reg, uint8_t data)
 {
-	vgm_chip_base *chip = find_chip(type, index);
-	if (chip != nullptr)
-		chip->write(reg, data);
+	if (index < active_chips.size()){
+		active_chips[index]->write(reg, data);
+	}
 }
 
 
@@ -322,7 +323,7 @@ void add_rom_data(chip_type type, ymfm::access_class access, std::vector<uint8_t
 {
 	uint32_t length = parse_uint32(buffer, localoffset);
 	uint32_t start = parse_uint32(buffer, localoffset);
-	for (int index = 0; index < 2; index++)
+	for (int index = 0; index < 64; index++)
 	{
 		vgm_chip_base *chip = find_chip(type, index);
 		if (chip != nullptr)
@@ -345,11 +346,15 @@ int write_wav(char const *filename, uint32_t output_rate, std::vector<int32_t> &
 		int32_t absval = std::abs(wav_buffer_src[index]);
 		max_scale = std::max(max_scale, absval);
 	}
-
 	// now convert
 	std::vector<int16_t> wav_buffer(wav_buffer_src.size());
-	for (int index = 0; index < wav_buffer_src.size(); index++)
-		wav_buffer[index] = wav_buffer_src[index] * 26000 / max_scale;
+	if (max_scale != 0){
+		for (int index = 0; index < wav_buffer_src.size(); index++){
+			wav_buffer[index] = wav_buffer_src[index] * 26000 / max_scale;
+		}
+	}else{
+		copy(wav_buffer_src.begin(), wav_buffer_src.end(), back_inserter(wav_buffer) );
+	}
 
 	// write the WAV file
 	FILE *out = fopen(filename, "wb");
@@ -501,38 +506,34 @@ int nextdata(S98File& file, unsigned int& pointer){
         return -2;
     }
 
-    switch(p[0]){
-        case 0x00:
-            write_chip(CHIP_YM2608, 0, p[1], p[2]);
-            pointer += 3;
-            break;
-        case 0x01:
-            write_chip(CHIP_YM2608, 0, p[1] | 0x100, p[2]);
-            pointer += 3;
-            break;
-        case 0xff:
-            ++pointer;
-            return 1;
-        case 0xfe:
-            n = s = 0; i = 0;
-            do{
-                ++i;
-                n |= (p[i] & 0x7f) << s;
-                s += 7;
-            } while(p[i] & 0x80);
-            n += 2;
-            pointer += i + 1;
-            
-            return n;
-        case 0xfd:
-            ++pointer;
-            return -1;
-        default:
-            ++pointer;
-            return -1;
-    }
-    
-    return 0;
+	if (p[0] < 0x7F){
+		if (p[0] % 2 == 0)
+			write_chip(p[0] / 2, p[1], p[2]);
+		else
+			write_chip(p[0] / 2, p[1] | 0x100, p[2]);
+
+		pointer += 3;
+		return 0;
+	}else if (p[0] == 0xff){
+		++pointer;
+		return 1;
+	}else if (p[0] == 0xfe){
+		n = s = 0; i = 0;
+		do{
+			++i;
+			n |= (p[i] & 0x7f) << s;
+			s += 7;
+		} while(p[i] & 0x80);
+		n += 2;
+		pointer += i + 1;
+		
+		return n;
+	}else if (p[0] == 0xfd){
+		++pointer;
+		return -1;
+	}
+
+	return -1;
 }
 
 void generate_all(S98File& file, int loop, uint32_t output_rate, double ssgvol, std::vector<int32_t> &wav_buffer){
@@ -543,19 +544,24 @@ void generate_all(S98File& file, int loop, uint32_t output_rate, double ssgvol, 
     for (int i = 0; i < file.header->devicecount; i++){
         switch (file.header->deviceInfo[i].type)
         {
+		case S98File::TYPE_PSG:
+			add_chips<ymfm::ym2149>(file.header->deviceInfo[i].clock, CHIP_YM2149, "YM2149");
+			break;
         case S98File::TYPE_OPNA:
+			add_chips<ymfm::ym2608>(file.header->deviceInfo[i].clock, CHIP_YM2608, "YM2608");
+			break;
         case S98File::TYPE_OPN:
-            add_chips<ymfm::ym2608>(file.header->deviceInfo[i].clock, CHIP_YM2608, "YM2608");
+            add_chips<ymfm::ym2203>(file.header->deviceInfo[i].clock, CHIP_YM2203, "YM2203");
             break;
         case S98File::TYPE_OPM:
-            add_chips<ymfm::ym2608>(file.header->deviceInfo[i].clock, CHIP_YM2151, "YM2151");
+            add_chips<ymfm::ym2151>(file.header->deviceInfo[i].clock, CHIP_YM2151, "YM2151");
             break;
         default:
             break;
         }
     }
     //for s98v1
-    if (file.header->devicecount == 0){
+    if (file.header->format == '1'){
         add_chips<ymfm::ym2608>(7987200, CHIP_YM2608, "YM2608");
     }
 
