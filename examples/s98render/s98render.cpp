@@ -214,6 +214,11 @@ protected:
 		return (offset < data.size()) ? data[offset] : 0;
 	}
 
+	virtual void ymfm_external_write(ymfm::access_class type, uint32_t address, uint8_t data) override
+	{
+		write_data(type, address, 1, &data);
+	}
+
 	// internal state
 	ChipType m_chip;
 	uint32_t m_clock;
@@ -566,8 +571,10 @@ void generate_all(S98File& file, int loop, uint32_t output_rate, double ssgvol, 
     }
 
     for (auto chip : active_chips)
-        if (chip->type() == CHIP_YM2608)
+        if (chip->type() == CHIP_YM2608){
             chip->set_ssg_volume(ssgvol);
+			chip->write(0x29, 0x9f);
+		}
     
     unsigned int pointer = file.header->dataptr;
     while (loopcount <= (file.header->loopptr == 0 ? 0 : loop)){
