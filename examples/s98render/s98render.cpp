@@ -144,7 +144,7 @@ public:
 		uint8_t data1 = 0, data2 = 0;
 
 		// see if there is data to be written; if so, extract it and dequeue
-		if (!m_queue.empty())
+		while (!m_queue.empty())
 		{
 			auto front = m_queue.front();
 			addr1 = 0 + 2 * ((front.first >> 8) & 3);
@@ -152,15 +152,16 @@ public:
 			addr2 = addr1 + ((m_type == CHIP_YM2149) ? 2 : 1);
 			data2 = front.second;
 			m_queue.erase(m_queue.begin());
-		}
 
-		// write to the chip
-		if (addr1 != 0xffff)
-		{
-			if (LOG_WRITES)
-				printf("%10.5f: %s %03X=%02X\n", double(m_clocks) / double(m_chip.sample_rate(m_clock)), m_name.c_str(), data1, data2);
-			m_chip.write(addr1, data1);
-			m_chip.write(addr2, data2);
+			// write to the chip
+			if (addr1 != 0xffff)
+			{
+				if (LOG_WRITES)
+					printf("%10.5f: %s %03X=%02X\n", double(m_clocks) / double(m_chip.sample_rate(m_clock)), m_name.c_str(), data1, data2);
+				m_chip.write(addr1, data1);
+				m_chip.write(addr2, data2);
+				if (!(addr1 == 0x2 && data1 == 0x08)) break;
+			}
 		}
 
 		// generate at the appropriate sample rate
@@ -206,7 +207,6 @@ public:
 		m_clocks++;
 	}
 
-protected:
 	// handle a read from the buffer
 	virtual uint8_t ymfm_external_read(ymfm::access_class type, uint32_t offset) override
 	{
@@ -219,6 +219,7 @@ protected:
 		write_data(type, address, 1, &data);
 	}
 
+protected:
 	// internal state
 	ChipType m_chip;
 	uint32_t m_clock;
