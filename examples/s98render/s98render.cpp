@@ -547,29 +547,29 @@ void generate_all(S98File& file, int loop, uint32_t output_rate, double ssgvol, 
 	emulated_time output_pos = 0;
     int loopcount = 0;
     //create chip
-    for (int i = 0; i < file.header->devicecount; i++){
-        switch (file.header->deviceInfo[i].type)
-        {
-		case S98File::TYPE_PSG:
-			add_chips<ymfm::ym2149>(file.header->deviceInfo[i].clock, CHIP_YM2149, "YM2149");
-			break;
-        case S98File::TYPE_OPNA:
-			add_chips<ymfm::ym2608>(file.header->deviceInfo[i].clock, CHIP_YM2608, "YM2608");
-			break;
-        case S98File::TYPE_OPN:
-            add_chips<ymfm::ym2203>(file.header->deviceInfo[i].clock, CHIP_YM2203, "YM2203");
-            break;
-        case S98File::TYPE_OPM:
-            add_chips<ymfm::ym2151>(file.header->deviceInfo[i].clock, CHIP_YM2151, "YM2151");
-            break;
-        default:
-            break;
-        }
-    }
-    //for s98v1
-    if (file.header->format == '1'){
+    if (file.header->format == '3'){
+		for (int i = 0; i < file.header->devicecount; i++){
+			switch (file.header->deviceInfo[i].type)
+			{
+			case S98File::TYPE_PSG:
+				add_chips<ymfm::ym2149>(file.header->deviceInfo[i].clock, CHIP_YM2149, "YM2149");
+				break;
+			case S98File::TYPE_OPNA:
+				add_chips<ymfm::ym2608>(file.header->deviceInfo[i].clock, CHIP_YM2608, "YM2608");
+				break;
+			case S98File::TYPE_OPN:
+				add_chips<ymfm::ym2203>(file.header->deviceInfo[i].clock, CHIP_YM2203, "YM2203");
+				break;
+			case S98File::TYPE_OPM:
+				add_chips<ymfm::ym2151>(file.header->deviceInfo[i].clock, CHIP_YM2151, "YM2151");
+				break;
+			default:
+				break;
+			}
+		}
+	}else{
         add_chips<ymfm::ym2608>(7987200, CHIP_YM2608, "YM2608");
-    }
+	}
 
     for (auto chip : active_chips)
         if (chip->type() == CHIP_YM2608){
