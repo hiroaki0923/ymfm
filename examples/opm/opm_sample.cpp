@@ -5,9 +5,9 @@
 #include <chrono>  // Required for sleep
 #include <thread>  // Required for sleep
 
-// ymfm library (headers copied into ymfm_lib directory)
-#include "ymfm_lib/ymfm.h"
-#include "ymfm_lib/ymfm_opm.h"
+// ymfm library (headers expected in root src/ directory)
+#include "ymfm.h"
+#include "ymfm_opm.h"
 
 
 // Define note frequencies (e.g., C4, D4, etc.)

@@ -38,3 +38,7 @@
 # VS Code stuff
 .vs/
 reference/
+
+# Build directory
+build/
+**/build/
